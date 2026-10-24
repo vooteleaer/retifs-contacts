@@ -10,7 +10,8 @@ use libretifs::{AttrValue, Client, RecordView, Request, Response};
 
 /// The user's own namespace: their address book.
 pub const ME: &str = "me";
-pub const TYPE: &str = "contact";
+/// What a contact is (ADR-0025): Haiku People's type.
+pub const TYPE: &str = libretifs::types::PERSON;
 
 /// The labelled kinds of value a contact has several of (`email:work`).
 pub const MULTI: [&str; 3] = ["email", "phone", "address"];
@@ -159,7 +160,7 @@ impl Related {
     }
 
     pub fn is_photo(&self) -> bool {
-        self.kind == "image" || self.kind == "photo"
+        self.kind.starts_with("image/") || self.kind == "image" || self.kind == "photo"
     }
 }
 
@@ -216,7 +217,9 @@ impl Book {
         names.retain(|n| n != ME && !n.starts_with("ch-"));
         // Libraries holding contacts (a family's address book); others
         // (calendars, photos) are left to the apps for them.
-        names.retain(|n| matches!(self.call(&mut c, Request::Query { ns: n.clone(), terms: vec![format!("type={TYPE}")], at: None }), Ok(Response::Records { records }) if !records.is_empty()));
+        names.retain(|n| {
+            libretifs::types::terms(TYPE).into_iter().any(|t| matches!(self.call(&mut c, Request::Query { ns: n.clone(), terms: vec![t], at: None }), Ok(Response::Records { records }) if !records.is_empty()))
+        });
         names.sort_by_key(|n| n.to_lowercase());
         names.insert(0, ME.into());
         Ok(names)
@@ -227,13 +230,16 @@ impl Book {
         let mut c = self.client()?;
         let mut out = Vec::new();
         for ns in libraries {
-            let req = Request::Query { ns: ns.clone(), terms: vec![format!("type={TYPE}")], at: None };
-            match self.call(&mut c, req) {
-                Ok(Response::Records { records }) => out.extend(records.iter().map(|r| Contact::from_record(ns, r))),
-                Ok(_) => {}
-                // A library not here yet (`me` before anything was saved): none.
-                Err(e) if e.contains("no namespace") => {}
-                Err(e) => return Err(format!("{ns}: {e}")),
+            // Under the type and the name it had before (ADR-0025).
+            for term in libretifs::types::terms(TYPE) {
+                let req = Request::Query { ns: ns.clone(), terms: vec![term], at: None };
+                match self.call(&mut c, req) {
+                    Ok(Response::Records { records }) => out.extend(records.iter().map(|r| Contact::from_record(ns, r))),
+                    Ok(_) => {}
+                    // A library not here yet (`me` before anything was saved): none.
+                    Err(e) if e.contains("no namespace") => {}
+                    Err(e) => return Err(format!("{ns}: {e}")),
+                }
             }
         }
         out.sort_by_cached_key(|c| c.display_name().to_lowercase());
