@@ -193,7 +193,20 @@ impl Book {
         }
     }
 
-    /// The libraries this device has: `me` first, then the rest by name.
+    /// Every library this device has (for what points at a contact: photos,
+    /// calendars), `me` first.
+    pub fn all_libraries(&self) -> Result<Vec<String>, String> {
+        let mut c = self.client()?;
+        let mut names = match self.call(&mut c, Request::Namespaces)? {
+            Response::Names { names } => names,
+            _ => Vec::new(),
+        };
+        names.retain(|n| n != ME && !n.starts_with("ch-"));
+        names.insert(0, ME.into());
+        Ok(names)
+    }
+
+    /// The libraries holding contacts: `me` first, then the rest by name.
     pub fn libraries(&self) -> Result<Vec<String>, String> {
         let mut c = self.client()?;
         let mut names = match self.call(&mut c, Request::Namespaces)? {
@@ -201,6 +214,9 @@ impl Book {
             _ => Vec::new(),
         };
         names.retain(|n| n != ME && !n.starts_with("ch-"));
+        // Libraries holding contacts (a family's address book); others
+        // (calendars, photos) are left to the apps for them.
+        names.retain(|n| matches!(self.call(&mut c, Request::Query { ns: n.clone(), terms: vec![format!("type={TYPE}")], at: None }), Ok(Response::Records { records }) if !records.is_empty()));
         names.sort_by_key(|n| n.to_lowercase());
         names.insert(0, ME.into());
         Ok(names)

@@ -298,10 +298,11 @@ fn open_card(me: &Rc<App>, contact: Option<Contact>) {
     let related = adw::PreferencesGroup::builder().title("Related").description("Photos and events that name this person, in any of your libraries.").visible(false).build();
     page.add(&related);
     if let Some(id) = c.id.clone() {
-        let libs = me.libraries.borrow().clone();
         let (me2, c2, related2, avatar2) = (me.clone(), c.clone(), related.clone(), avatar.clone());
         let photo_id = c.get("photo").to_string();
         bg(&me.book, move |b| {
+            // Every library: photos and calendars point at contacts too.
+            let libs = b.all_libraries().unwrap_or_default();
             let items = b.related(&id, &libs);
             let photo = (!photo_id.is_empty()).then(|| b.content_of(&photo_id, &libs, 20 << 20)).flatten();
             (items, photo)
