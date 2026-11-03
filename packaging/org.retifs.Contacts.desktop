@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Contacts
+GenericName=Contacts
+Comment=Your contacts, kept in your own retifs library on every device of yours
+Exec=retifs-contacts
+Icon=org.retifs.Contacts
+Terminal=false
+Categories=Office;ContactManagement;
+Keywords=contacts;people;address book;retifs;
+StartupNotify=true
