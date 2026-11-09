@@ -1,0 +1,53 @@
+# org.retifs.Contacts: the GTK app only. It uses whichever retifsd runs on this computer
+# (the retifs .deb's), through the shared store's socket. Build it with
+# build.sh next to this: it stages the sources this names (src/…) beside a
+# copy of this file.
+id: org.retifs.Contacts
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: retifs-contacts
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # The one store every retifs Flatpak and the host's retifsd share (its
+  # socket is there).
+  - --filesystem=xdg-data/retifs:create
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  # cargo fetches the crates (local bundles; no vendoring).
+  build-args:
+    - --share=network
+  env:
+    CARGO_HOME: /run/build/retifs-contacts/cargo
+modules:
+  - name: retifs-contacts
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: src/retifs
+        dest: retifs
+      - type: dir
+        path: src/retifs-contacts
+        dest: retifs-contacts
+      # The store set (inside a Flatpak XDG_DATA_HOME is the app's own),
+      # then the program.
+      - type: script
+        dest-filename: wrapper
+        commands:
+          - ': "${RETIFS_STORE:=$HOME/.local/share/retifs}"'
+          - export RETIFS_STORE
+          - exec /app/libexec/retifs-contacts "$@"
+    build-commands:
+      - cargo build --release --locked --manifest-path retifs-contacts/Cargo.toml -p retifs-contacts-gtk
+      - install -Dm755 retifs-contacts/target/release/retifs-contacts /app/libexec/retifs-contacts
+      - install -Dm755 wrapper /app/bin/retifs-contacts
+      - install -Dm644 retifs-contacts/packaging/org.retifs.Contacts.desktop -t /app/share/applications
+      - install -Dm644 retifs-contacts/packaging/org.retifs.Contacts.svg -t /app/share/icons/hicolor/scalable/apps
+      - install -Dm644 retifs-contacts/packaging/flatpak/org.retifs.Contacts.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 retifs-contacts/LICENSE -t /app/share/licenses/org.retifs.Contacts

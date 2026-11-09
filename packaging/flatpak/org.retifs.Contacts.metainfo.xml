@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.retifs.Contacts</id>
+  <name>Contacts</name>
+  <summary>Your contacts, kept in your own retifs library on every device of yours</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Your contacts, kept in your own retifs library and on every device of yours. It uses the retifs daemon of this computer (the retifs .deb),
+    whose store all retifs apps share. A prototype.</p>
+  </description>
+  <launchable type="desktop-id">org.retifs.Contacts.desktop</launchable>
+  <url type="homepage">https://github.com/vooteleaer/retifs</url>
+  <content_rating type="oars-1.1"/>
+</component>
