@@ -155,7 +155,7 @@ fn build(gapp: &adw::Application) {
         delete.connect_clicked(move |_| delete_card(&me));
     }
 
-    // Libraries, then contacts; then every 3 s, again when a library changed.
+    // Libraries, then contacts; again when a library shown changes.
     let me2 = me.clone();
     bg(&me.book, |b| b.libraries(), move |r| {
         match r {
@@ -165,13 +165,7 @@ fn build(gapp: &adw::Application) {
         reload(&me2);
         open_on_start(&me2);
     });
-    {
-        let me = me.clone();
-        glib::timeout_add_seconds_local(3, move || {
-            refresh_if_changed(&me);
-            glib::ControlFlow::Continue
-        });
-    }
+    watch_changes(&me, Arc::new(Book::new()), HashMap::new());
     snapshot_on_request(&window);
     window.present();
 }
@@ -215,13 +209,27 @@ fn reload(me: &Rc<App>) {
     });
 }
 
-fn refresh_if_changed(me: &Rc<App>) {
+/// Reloads when a library shown changes: retifsd says so the moment it
+/// does (`Book::wait_change`), waited for on a `Book` of its own so
+/// nothing else is held up meanwhile.
+fn watch_changes(me: &Rc<App>, watcher: Arc<Book>, mut known: HashMap<String, u64>) {
+    // The libraries shown now, a newly shown one from the count of the last load.
     let scope = me.scope();
-    let me2 = me.clone();
-    bg(&me.book, move |b| b.change_counts(&scope), move |counts| {
-        if !counts.is_empty() && counts != *me2.counts.borrow() {
+    known.retain(|ns, _| scope.contains(ns));
+    for (ns, n) in me.counts.borrow().iter() {
+        if scope.contains(ns) {
+            known.entry(ns.clone()).or_insert(*n);
+        }
+    }
+    let (me2, w) = (me.clone(), watcher.clone());
+    bg(&watcher, move |b| {
+        let changed = b.wait_change(&mut known, std::time::Duration::from_secs(60));
+        (changed, known)
+    }, move |(changed, known)| {
+        if changed {
             reload(&me2);
         }
+        watch_changes(&me2, w, known);
     });
 }
 
