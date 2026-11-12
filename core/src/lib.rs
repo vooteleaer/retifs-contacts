@@ -1,5 +1,5 @@
 //! Contacts on retifs: the `type=contact` records of ADR-0024, in the user's
-//! own namespace `me` (their address book, the same records ADR-0020 uses to
+//! own library `me` (their address book, the same records ADR-0020 uses to
 //! share with people) and in any library holding contacts (a club's shared
 //! address book). Front ends (GTK now, others later) share this.
 
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use libretifs::{AttrValue, Client, RecordView, Request, Response};
 
-/// The user's own namespace: their address book.
+/// The user's own library: their address book.
 pub const ME: &str = "me";
 /// What a contact is (ADR-0025): Haiku People's type.
 pub const TYPE: &str = libretifs::types::PERSON;
@@ -237,7 +237,7 @@ impl Book {
                     Ok(Response::Records { records }) => out.extend(records.iter().map(|r| Contact::from_record(ns, r))),
                     Ok(_) => {}
                     // A library not here yet (`me` before anything was saved): none.
-                    Err(e) if e.contains("no namespace") => {}
+                    Err(e) if e.contains("no library") || e.contains("no namespace") => {}
                     Err(e) => return Err(format!("{ns}: {e}")),
                 }
             }
